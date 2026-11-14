@@ -1,7 +1,7 @@
 {
   "name": "evals",
-  "version": "0.3.0",
-  "description": "Run authorized model and skill comparisons through the Evals CLI.",
+  "version": "0.4.0",
+  "description": "Run one task on up to eight AI setups through Evals: ultra-design, ultra-deck, ultra-research, ultra-judge, ultra-audit and compare.",
   "author": {
     "name": "Evals"
   },

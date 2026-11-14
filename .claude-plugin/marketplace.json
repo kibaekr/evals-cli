@@ -7,8 +7,8 @@
     {
       "name": "evals",
       "source": "./",
-      "description": "Run model and skill comparisons through the Evals CLI."
+      "description": "Run one task on up to eight AI setups from different model families through Evals."
     }
   ],
-  "description": "The Evals CLI and skill for comparing models and skills on one brief."
+  "description": "The Evals skills and CLI: ultra-design, ultra-deck, ultra-research, ultra-judge, ultra-audit and compare."
 }
