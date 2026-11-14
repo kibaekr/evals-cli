@@ -20,6 +20,7 @@ Type them in Claude Code (`/evals …`) or Codex (`$evals …`), or just say "us
 | `/evals ultra-judge` | A council of eight models scores your candidates blind against one rubric, with the votes tallied and how much the judges agreed. | `/evals ultra-judge which of these five ad cuts holds a viewer past three seconds` |
 | `/evals ultra-audit` | Reads your recent Claude Code and Codex sessions on your machine, reports what you use AI for, and proposes runs on your real briefs to find what is cheaper or better. | `/evals ultra-audit` |
 | `/evals compare` | A controlled test of one Gen AI tool or effort level against another. | `/evals compare Kling vs Veo for this product clip` |
+| `/evals direct` | One model on one brief, then keep working on it. | `/evals direct GPT-6.1 Sol: a landing page for my bakery` |
 
 Each command also has a shortcut skill (`/evals-compare-models`, `/evals-test-skills`, `/evals-ultra-design`, …). Add `--quick` to an ultra command for four setups instead of eight, and `--private` (Evals Plus or Pro) or `--public` to choose who can see the run.
 
@@ -70,11 +71,12 @@ evals upload logo.png notes.pdf   # input IDs
 evals suggest --prompt-file brief.md --count 8 > suggestion.json   # Evals' Battle lineup
 evals prepare --private --prompt-file brief.md --suggestion suggestion.json
 evals prepare --private --prompt-file brief.md \
-  --setup "model=MODEL_A,gen=auto,effort=high" --setup "model=MODEL_B,gen=auto" ...
+  --setup "model=MODEL_A,gen=auto,effort=high" --setup "model=MODEL_B,gen=auto,runtime=native" ...
 evals start PLAN_ID --confirm-spend
 evals wait RUN_ID --timeout 600
 evals results RUN_ID --out results/
 evals continue RUN_ID --setup 2 --prompt-file next.md [--confirm-spend]
+evals retry RUN_ID --setup 2 [--confirm-spend]       # the run page's Retry
 evals sessions --days 7 --out audit/   # local only, uploads nothing
 evals tally verdicts/ --key key.json --weights weights.json
 ```

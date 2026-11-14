@@ -253,7 +253,7 @@ SKILL_ID = re.compile(r"[A-Za-z0-9_-]{1,100}")
 
 
 def parse_setup(spec: str) -> dict:
-    """`model=ID[,gen=ID|auto|none][,skill=auto|none|ID]...[,effort=LEVEL]` -> one comparison option."""
+    """`model=ID[,gen=ID|auto|none][,skill=auto|none|ID]...[,effort=LEVEL][,runtime=native]` -> one option."""
     option: dict[str, Any] = {"model_id": None}
     skills: list[str] = []
     for part in filter(None, (piece.strip() for piece in spec.split(","))):
@@ -269,12 +269,16 @@ def parse_setup(spec: str) -> dict:
             if not SKILL_ID.fullmatch(value):
                 raise ValueError(f"Not a skill ID: {value!r}. Use auto, none or an ID from evals search skills.")
             skills.append(value)
+        elif key == "runtime":
+            if value not in ("native", "native-codex"):
+                raise ValueError("runtime= takes native (native Codex, for ChatGPT-connected models).")
+            option["runtime"] = "native-codex"
         elif key == "effort":
             if value not in EFFORTS:
                 raise ValueError(f"Effort must be one of {', '.join(EFFORTS)}.")
             option["reasoning_effort"] = value
         else:
-            raise ValueError(f"Unknown setup part {key!r}. Use model, gen, skill or effort.")
+            raise ValueError(f"Unknown setup part {key!r}. Use model, gen, skill, effort or runtime.")
     if not option["model_id"]:
         raise ValueError("Each --setup needs model=ID. Run evals models for IDs.")
     if len(skills) > 1 and ({"auto", "none"} & set(skills)):
@@ -312,8 +316,8 @@ def plan_body(args: argparse.Namespace) -> dict:
         if len(skills) != len(models):
             raise ValueError("Give one --skill per --model, or none.")
         options = [{"model_id": model, "skill": skill} for model, skill in zip(models, skills)]
-    if not 2 <= len(options) <= MAX_SETUPS:
-        raise ValueError(f"Choose 2 to {MAX_SETUPS} setups. Run evals models for IDs.")
+    if not 1 <= len(options) <= MAX_SETUPS:
+        raise ValueError(f"Choose 1 setup (a direct run) or up to {MAX_SETUPS} to compare. Run evals models for IDs.")
     body["options"] = options
     return body
 
@@ -366,7 +370,8 @@ def option_line(option: dict) -> str:
     gen = option.get("generation") or {"name": "Don’t Use"}
     gen_text = gen if isinstance(gen, str) else gen.get("name", "Don’t Use") + (f" ({gen['payer']})" if gen.get("choice") != "none" and gen.get("payer") else "")
     effort = f" · {option['reasoning_effort']} effort" if option.get("reasoning_effort") else ""
-    return f"{option['name']} · {payer}{effort} · Gen AI: {gen_text} · {skill}"
+    runtime = " · native Codex" if option.get("runtime") == "native-codex" else ""
+    return f"{option['name']} · {payer}{effort}{runtime} · Gen AI: {gen_text} · {skill}"
 
 
 def review(plan: dict) -> bool:
@@ -503,6 +508,26 @@ def results(site: str, device: dict, run_id: str, out: Path) -> dict:
         manifest["setups"].append(entry)
     save_state(out / "manifest.json", manifest)
     return manifest | {"folder": str(out)}
+
+
+def retry_setup(site: str, device: dict, args: argparse.Namespace) -> dict:
+    """The run page's Retry: run a setup again in place of its newest attempt."""
+    if not RUN_ID.fullmatch(args.run_id):
+        raise ValueError("Enter a run ID returned by Evals.")
+    index = args.setup - 1
+    if not args.confirm_spend:
+        run = run_status(site, device, args.run_id)
+        attempts = [row for row in run["attempts"] if row["setup_index"] == index]
+        newest = max(attempts, key=lambda row: row.get("user_attempt", 0), default=None)
+        return {
+            "started": False, "setup": args.setup, "replaces": newest,
+            "next": "Show this to the user. A retry is a new attempt on the same model and payer. After they approve, repeat with --confirm-spend.",
+        }
+    attempt = api(
+        site, f"/cli/runs/{args.run_id}/retries", method="POST", token=device["token"], timeout=115,
+        body={"setup_index": index, "confirm_spend": True},
+    )
+    return {"started": True, "attempt": attempt, "review_url": site + "/runs/" + args.run_id}
 
 
 def continue_turn(site: str, device: dict, args: argparse.Namespace) -> dict:
@@ -836,7 +861,8 @@ def plan_args(command: argparse.ArgumentParser) -> None:
                       help="Anyone can see the brief, inputs and results on Evals.")
     seen.add_argument("--visibility", choices=("public", "private"), help=argparse.SUPPRESS)
     command.add_argument("--setup", action="append", metavar="SPEC", help=(
-        "One option: model=ID[,gen=ID|auto|none][,skill=auto|none|ID ...][,effort=LEVEL]. Repeat 2 to 8 times."))
+        "One option: model=ID[,gen=ID|auto|none][,skill=auto|none|ID ...][,effort=LEVEL][,runtime=native]. "
+        "Once for a direct run, up to 8 times to compare."))
     command.add_argument("--model", action="append", help="Shorthand: one model ID per option (with --skill)")
     command.add_argument("--skill", action="append", help="Shorthand: one per --model: auto, none, or a skill ID")
     command.add_argument("--input", action="append", metavar="UPLOAD_ID", help="An input ID from evals upload")
@@ -877,7 +903,7 @@ def main(argv: list[str] | None = None) -> int:
     brief_args(suggest)
     suggest.add_argument("--count", type=int, choices=range(2, MAX_SETUPS + 1), default=4, metavar="N")
     suggest.add_argument("--input", action="append", metavar="UPLOAD_ID", help="An input ID from evals upload")
-    for name, text in (("prepare", "Prepare a plan for 2 to 8 setups without starting it"),
+    for name, text in (("prepare", "Prepare a plan for 1 setup (direct) or up to 8 without starting it"),
                        ("compare", "Same as prepare; kept for earlier scripts")):
         command = sub.add_parser(name, help=text)
         brief_args(command)
@@ -899,6 +925,10 @@ def main(argv: list[str] | None = None) -> int:
     brief_args(follow)
     follow.add_argument("--input", action="append", metavar="UPLOAD_ID")
     follow.add_argument("--confirm-spend", action="store_true", help="Use only after the user approved this follow-up")
+    again = sub.add_parser("retry", help="Run one setup again in place of its newest attempt")
+    again.add_argument("run_id")
+    again.add_argument("--setup", type=int, required=True, help="Setup number, starting at 1")
+    again.add_argument("--confirm-spend", action="store_true", help="Use only after the user approved this retry")
     local = sub.add_parser("sessions", help="List your recent Claude Code and Codex sessions locally (uploads nothing)")
     local.add_argument("--days", type=int, default=7)
     local.add_argument("--out", type=Path, required=True)
@@ -950,6 +980,8 @@ def main(argv: list[str] | None = None) -> int:
             output(results(site, device, args.run_id, args.out.expanduser()))
         elif args.command == "continue":
             output(continue_turn(site, device, args))
+        elif args.command == "retry":
+            output(retry_setup(site, device, args))
         elif args.command in ("prepare", "compare"):
             return finish_plan(site, device, args)
         else:
