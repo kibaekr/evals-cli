@@ -1,0 +1,14 @@
+{
+  "name": "evals",
+  "owner": {
+    "name": "Evals"
+  },
+  "plugins": [
+    {
+      "name": "evals",
+      "source": "./",
+      "description": "Run model and skill comparisons through the Evals CLI."
+    }
+  ],
+  "description": "The Evals CLI and skill for comparing models and skills on one brief."
+}

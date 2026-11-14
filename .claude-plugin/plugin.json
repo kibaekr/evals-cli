@@ -1,0 +1,10 @@
+{
+  "name": "evals",
+  "version": "0.3.0",
+  "description": "Run authorized model and skill comparisons through the Evals CLI.",
+  "author": {
+    "name": "Evals"
+  },
+  "privacyPolicyUrl": "https://evals.ag/privacy",
+  "homepage": "https://evals.ag/agent-comparison"
+}
