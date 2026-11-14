@@ -5,7 +5,7 @@ description: >-
   rubric on Evals, and the votes are tallied with how much the judges agreed. Use when the user says
   "use evals ultra judge", "/evals-ultra-judge", or wants several models to pick the best design, ad,
   copy, deck or video, or a second opinion on subjective work.
-argument-hint: "[--quick] <brief>"
+argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 
 # evals ultra-judge

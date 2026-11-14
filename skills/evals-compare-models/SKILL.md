@@ -5,7 +5,7 @@ description: >-
   the user names the models or Evals proposes a lineup for the brief that favours the newest models.
   Use when the user says "use evals compare models", "/evals-compare-models", or asks which model is
   best for a task.
-argument-hint: "[--quick] <brief>"
+argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 
 # evals compare-models

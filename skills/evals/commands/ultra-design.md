@@ -16,9 +16,9 @@ Size: 8, or 4 with `--quick`, or the user's number.
 ## 3. Prepare, review, start
 
 ```sh
-evals prepare --visibility private --prompt-file brief.md --suggestion suggestion.json [--input ID ...]
+evals prepare --private --prompt-file brief.md --suggestion suggestion.json [--input ID ...]
 # or, with your own lineup:
-evals prepare --visibility private --prompt-file brief.md \
+evals prepare --private --prompt-file brief.md \
   --setup "model=MODEL_A,gen=auto" --setup "model=MODEL_B,gen=auto" ...
 ```
 

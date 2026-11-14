@@ -318,8 +318,19 @@ def plan_body(args: argparse.Namespace) -> dict:
     return body
 
 
+PRIVATE_NEEDS_PLAN = (
+    "Private runs need an Evals Plus or Pro plan: https://evals.ag/pricing. "
+    "Run it with --public instead, and everyone can see the brief, inputs and results."
+)
+
+
 def prepare(site: str, device: dict, args: argparse.Namespace) -> dict:
-    plan = api(site, "/cli/comparisons/prepare", method="POST", token=device["token"], body=plan_body(args), timeout=90)
+    try:
+        plan = api(site, "/cli/comparisons/prepare", method="POST", token=device["token"], body=plan_body(args), timeout=90)
+    except ApiError as error:
+        if error.status == 403 and args.visibility == "private" and "private" in str(error).lower():
+            raise ValueError(PRIVATE_NEEDS_PLAN) from error
+        raise
     check_review(plan)
     path = plan_path(plan["id"])
     for prior in path.parent.glob("req_*.json"):
@@ -466,7 +477,8 @@ def results(site: str, device: dict, run_id: str, out: Path) -> dict:
             "model": setup.get("model"), "generation": setup.get("generation"), "status": setup.get("status"),
             "attempt_id": setup.get("attempt_id"), "turns": setup.get("turns"), "elapsed_ms": setup.get("elapsed_ms"),
             "tokens": setup.get("tokens"), "charge_usd": setup.get("charge_usd"), "main_output": setup.get("main_output"),
-            "output_id": setup.get("output_id"), "files": [],
+            "output_id": setup.get("output_id"), "user_attempt": setup.get("user_attempt"),
+            "can_continue": setup.get("can_continue"), "failure": setup.get("failure"), "files": [],
         }
         base = out / folder
         base.mkdir(parents=True, exist_ok=True)
@@ -476,9 +488,18 @@ def results(site: str, device: dict, run_id: str, out: Path) -> dict:
             relative = safe_relative(item["name"])
             try:
                 size = download(item["url"], base / relative)
-                entry["files"].append({"name": item["name"], "path": str(base / relative), "bytes": size})
+                # Copies of the run's own inputs sit under inputs/ in each workspace; kept, and marked.
+                entry["files"].append({
+                    "name": item["name"], "path": str(base / relative), "bytes": size,
+                    "input": item["name"].startswith("inputs/"),
+                })
             except (OSError, ValueError, urllib.error.URLError) as error:
                 manifest["problems"].append({"setup": folder, "file": item["name"], "error": str(error)})
+        # The run page calls this "Not completed: no files and no final answer". Say so instead of
+        # letting a reader take an empty folder for a result.
+        entry["produced_nothing"] = entry["status"] == "completed" and not setup.get("final_message") and not any(
+            not f["input"] for f in entry["files"]
+        )
         manifest["setups"].append(entry)
     save_state(out / "manifest.json", manifest)
     return manifest | {"folder": str(out)}
@@ -669,8 +690,26 @@ def _codex_session(path: Path) -> dict:
     return record
 
 
+def _fold_repeats(messages: list[dict]) -> list[dict]:
+    """Keep each distinct message once, in order, with every time it was sent. Nothing is dropped:
+    an automation that sends the same prompt 200 times becomes one message with 200 timestamps."""
+    folded: dict[tuple, dict] = {}
+    for message in messages:
+        key = (message["text"], message["images"], message["source"], message["meta"])
+        if key in folded:
+            folded[key]["repeats"] += 1
+            folded[key]["also_at"].append(message["at"])
+        else:
+            folded[key] = {**message, "repeats": 1, "also_at": []}
+    return list(folded.values())
+
+
 def sessions(days: int, out: Path, claude_root: Path, codex_root: Path) -> dict:
-    """List local Claude Code and Codex sessions changed in the last `days` days. Reads only; uploads nothing."""
+    """List local Claude Code and Codex sessions changed in the last `days` days. Reads only; uploads nothing.
+
+    Every user-role message is kept word for word with its source label. That includes messages a person
+    did not type (automations, system reminders, compaction summaries): deciding which are the person's
+    is a judgement for the agent reading them, so nothing is filtered here."""
     if not 1 <= days <= 365:
         raise ValueError("Choose 1 to 365 days.")
     cutoff = time.time() - days * 86400
@@ -687,13 +726,17 @@ def sessions(days: int, out: Path, claude_root: Path, codex_root: Path) -> dict:
         except OSError as error:
             failed.append({"file": str(path), "error": str(error)})
             continue
+        sent = len(record["messages"])
+        record["messages"] = _fold_repeats(record["messages"])
         name = f"{tool}-{hashlib.sha256(str(path).encode()).hexdigest()[:16]}.json"
         save_state(out / name, record)
+        first = record["messages"][0] if record["messages"] else None
         index.append({
             "file": name, "tool": tool, "title": record["title"], "cwd": record["cwd"],
             "started_at": record["started_at"], "ended_at": record["ended_at"], "models": record["models"],
-            "usage": record["usage"], "messages": len(record["messages"]),
-            "typed_characters": sum(len(m["text"]) for m in record["messages"]),
+            "usage": record["usage"], "messages_sent": sent, "distinct_messages": len(record["messages"]),
+            "message_characters": sum(len(m["text"]) for m in record["messages"]),
+            "first_message": first and {"text": first["text"], "source": first["source"], "meta": first["meta"]},
             "unparsed_lines": record["unparsed_lines"],
         })
     summary = {"days": days, "folder": str(out), "sessions": len(index), "unreadable": failed, "index": index}
@@ -786,7 +829,12 @@ def brief_args(command: argparse.ArgumentParser, required: bool = True) -> None:
 
 
 def plan_args(command: argparse.ArgumentParser) -> None:
-    command.add_argument("--visibility", choices=("public", "private"), required=True)
+    seen = command.add_mutually_exclusive_group(required=True)
+    seen.add_argument("--private", dest="visibility", action="store_const", const="private",
+                      help="Only you can see the run. Needs an Evals Plus or Pro plan.")
+    seen.add_argument("--public", dest="visibility", action="store_const", const="public",
+                      help="Anyone can see the brief, inputs and results on Evals.")
+    seen.add_argument("--visibility", choices=("public", "private"), help=argparse.SUPPRESS)
     command.add_argument("--setup", action="append", metavar="SPEC", help=(
         "One option: model=ID[,gen=ID|auto|none][,skill=auto|none|ID ...][,effort=LEVEL]. Repeat 2 to 8 times."))
     command.add_argument("--model", action="append", help="Shorthand: one model ID per option (with --skill)")
@@ -852,7 +900,7 @@ def main(argv: list[str] | None = None) -> int:
     follow.add_argument("--input", action="append", metavar="UPLOAD_ID")
     follow.add_argument("--confirm-spend", action="store_true", help="Use only after the user approved this follow-up")
     local = sub.add_parser("sessions", help="List your recent Claude Code and Codex sessions locally (uploads nothing)")
-    local.add_argument("--days", type=int, default=14)
+    local.add_argument("--days", type=int, default=7)
     local.add_argument("--out", type=Path, required=True)
     local.add_argument("--claude-root", type=Path, default=Path("~/.claude/projects").expanduser())
     local.add_argument("--codex-root", type=Path, default=Path("~/.codex/sessions").expanduser())

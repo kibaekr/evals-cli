@@ -5,7 +5,7 @@ description: >-
   logos, brand systems, landing pages, app screens, ads, thumbnails, short videos. Use when the user
   says "use evals ultra design", "/evals-ultra-design", asks for many design or brand directions,
   wants several AIs to design the same thing, or wants options before committing to one look.
-argument-hint: "[--quick] <brief>"
+argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 
 # evals ultra-design

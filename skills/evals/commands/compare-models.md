@@ -15,7 +15,7 @@ Size: the number of models named, otherwise 4, or 8 if the user asks for a wide 
 Every setup gets the same skill choice (`skill=auto` unless the user said otherwise), the same Gen AI choice (`gen=none`, or `gen=auto` for all when the brief needs images or video) and the same effort level where each model offers it. A Battle suggestion may also pick a different Gen AI tool or skill per setup; for a model comparison, keep only its models and rebuild the lineup with identical settings:
 
 ```sh
-evals prepare --visibility private --prompt-file brief.md \
+evals prepare --private --prompt-file brief.md \
   --setup "model=MODEL_A,gen=none,skill=auto,effort=high" \
   --setup "model=MODEL_B,gen=none,skill=auto,effort=high" ...
 ```

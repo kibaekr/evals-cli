@@ -5,23 +5,25 @@ Read the user's own recent Claude Code and Codex sessions, report what they actu
 ## 1. List the sessions
 
 ```sh
-evals sessions --days 30 --out ~/.config/evals/audit/DATE
+evals sessions --days 7 --out ~/.config/evals/audit/DATE
 ```
 
-Use `--days 14` with `--quick`, or the period the user names. It reads `~/.claude/projects` and `~/.codex/sessions` and uploads nothing. It writes one JSON file per session (tool, project folder, start and end, models used, token totals, tool calls by name including Gen AI tools, files written, and every message the user typed, word for word) plus `index.json`.
+Use `--days 3` with `--quick`, or the period the user names (a busy month can run to hundreds of millions of characters, so say what a longer period means before reading it). It reads `~/.claude/projects` and `~/.codex/sessions` and uploads nothing. It writes one JSON file per session (tool, project folder, title, start and end, models used, token totals, tool calls by name including Gen AI tools, files written, and every user-role message word for word with its `source` label; an identical message sent again is kept once with `repeats` and every time it was sent) plus `index.json` with one row per session and its first message.
 
-## 2. Read every session
+User-role messages include ones no person typed: automation prompts, system reminders, compaction summaries, command echoes. The labels differ by app (the desktop app records typed messages as `sdk`). Deciding which messages a person wrote is part of the reading below, not something to filter by label.
 
-Split the session files into groups and give each group to a sub-agent (a small, fast model is fine). For every session it reads, the sub-agent answers:
+## 2. Read the sessions
 
-- Is there creative, subjective or research work in it: design, branding, decks, copy, images, video, audio, sites, research, plans or strategy? Engineering counts only when the result is judged by taste (a landing page, UI copy).
-- If so: the job in a few words, the user's brief word for word (the message that asked for the work, plus follow-ups that changed it), the model or Gen AI tool that did it, the tokens, and whether files came out.
+1. **Triage every session.** Give `index.json` to sub-agents in groups (a small, fast model is fine). For each row they decide, from its title, folder, models, tools and first message, whether the session may hold creative, subjective or research work. Every row gets a decision.
+2. **Read the likely ones in full.** Give each of those session files to a sub-agent. For the session it reads, it answers:
+   - Which messages did a person write, and is there creative, subjective or research work in them: design, branding, decks, copy, images, video, audio, sites, research, plans or strategy? Engineering counts only when the result is judged by taste (a landing page, UI copy).
+   - If so: the job in a few words, the person's brief word for word (the message that asked for the work, plus follow-ups that changed it), the model or Gen AI tool that did it, the tokens, and whether files came out.
 
-Merge every reply. Say how many sessions could not be read and why.
+Merge every reply. Report how many sessions were triaged, how many were read in full, and how many could not be read and why.
 
 ## 3. Report
 
-Like Claude Code's `/insights`, but about the work: the period and sessions read; the jobs ranked by how often they came up and how many tokens they used; which models and Gen AI tools did each job; anything notable, such as one job always on the most expensive model.
+Like Claude Code's `/insights`, but about the work: the period, sessions triaged and read in full; the jobs ranked by how often they came up and how many tokens they used; which models and Gen AI tools did each job; anything notable, such as one job always on the most expensive model.
 
 ## 4. Propose experiments
 

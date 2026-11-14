@@ -15,7 +15,7 @@ Upload files the question depends on (a deck to critique, a list to extend) and 
 Size: 8, or 4 with `--quick`. The strongest available model from each lab, so their blind spots differ; `gen=none`, `skill=auto`, and the highest `effort` each model offers (see `models`). Prefer models a connected account covers when the choice is otherwise equal.
 
 ```sh
-evals prepare --visibility private --prompt-file question.md \
+evals prepare --private --prompt-file question.md \
   --setup "model=MODEL_A,gen=none,effort=high" --setup "model=MODEL_B,gen=none,effort=high" ...
 ```
 

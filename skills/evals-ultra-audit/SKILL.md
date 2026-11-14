@@ -5,7 +5,7 @@ description: >-
   which models, and proposes Evals experiments on their real briefs to find what is cheaper or better.
   Use when the user says "use evals ultra audit", "/evals-ultra-audit", or asks how they use AI, what
   they overpay for, or which model to use for their recurring work.
-argument-hint: "[--quick] <brief>"
+argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 
 # evals ultra-audit

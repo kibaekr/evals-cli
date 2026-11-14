@@ -4,7 +4,7 @@ description: >-
   A skill against a no-skill control on the same AI model, brief and inputs through Evals, so only the
   skill changes, with repeated controls to show how much the model varies on its own. Use when the
   user says "use evals test skills", "/evals-test-skills", or asks whether a skill actually helps.
-argument-hint: "[--quick] <brief>"
+argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 
 # evals test-skills

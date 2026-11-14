@@ -14,7 +14,7 @@ Size: 8, or 4 with `--quick`. Use `suggest` as `ultra-design` does, or build the
 ## 3. Prepare, review, start
 
 ```sh
-evals prepare --visibility private --prompt-file brief.md --input MEMO_ID \
+evals prepare --private --prompt-file brief.md --input MEMO_ID \
   --setup "model=MODEL_A" --setup "model=MODEL_B" ...
 ```
 

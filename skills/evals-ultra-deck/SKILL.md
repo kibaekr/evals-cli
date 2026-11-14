@@ -4,7 +4,7 @@ description: >-
   Eight sales, marketing, pitch or strategy decks from one brief and the user's own source files, each
   by a different AI model family, through Evals. Use when the user says "use evals ultra deck",
   "/evals-ultra-deck", or wants several versions of a deck to choose from or combine.
-argument-hint: "[--quick] <brief>"
+argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 
 # evals ultra-deck

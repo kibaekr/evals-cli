@@ -21,7 +21,7 @@ Type them in Claude Code (`/evals …`) or Codex (`$evals …`), or just say "us
 | `/evals ultra-audit` | Reads your recent Claude Code and Codex sessions on your machine, reports what you use AI for, and proposes runs on your real briefs to find what is cheaper or better. | `/evals ultra-audit` |
 | `/evals compare` | A controlled test of one Gen AI tool or effort level against another. | `/evals compare Kling vs Veo for this product clip` |
 
-Each command also has a shortcut skill (`/evals-compare-models`, `/evals-test-skills`, `/evals-ultra-design`, …). Add `--quick` to an ultra command for four setups instead of eight.
+Each command also has a shortcut skill (`/evals-compare-models`, `/evals-test-skills`, `/evals-ultra-design`, …). Add `--quick` to an ultra command for four setups instead of eight, and `--private` (Evals Plus or Pro) or `--public` to choose who can see the run.
 
 Every run is reviewed before it starts: the brief, each setup's model, Gen AI tool, skills, effort and who pays, the inputs and the visibility. Setups on your connected Claude or ChatGPT account, and images or video on your connected Higgsfield account, carry no Evals fee; other models and tools are paid from your Evals balance at measured cost. Total cost is known once the run records it.
 
@@ -43,7 +43,7 @@ cp -R skills/* ~/.agents/skills/    # Codex
 python3 skills/evals/scripts/evals.py login
 ```
 
-Copy all the folders: the `evals-ultra-*` shortcuts read the `evals` folder next to them. `login` prints an approval link and a device code; approve the device in Evals. On a remote machine add `--no-browser`. Disconnect with `logout` or from [CLI Devices](https://evals.ag/settings/cli).
+Copy all the folders: the `evals-ultra-*` shortcuts read the `evals` folder next to them. `login` prints an evals.ag link and a device code: sign in there, or create a free account, and approve the device. On a remote machine add `--no-browser`. Disconnect with `logout` or from [CLI Devices](https://evals.ag/settings/cli).
 
 As a Claude Code plugin:
 
@@ -68,18 +68,18 @@ evals whoami                      # account and Private eligibility
 evals models [--gen-ai]           # LLMs, or Gen AI tools, with who pays
 evals upload logo.png notes.pdf   # input IDs
 evals suggest --prompt-file brief.md --count 8 > suggestion.json   # Evals' Battle lineup
-evals prepare --visibility private --prompt-file brief.md --suggestion suggestion.json
-evals prepare --visibility private --prompt-file brief.md \
+evals prepare --private --prompt-file brief.md --suggestion suggestion.json
+evals prepare --private --prompt-file brief.md \
   --setup "model=MODEL_A,gen=auto,effort=high" --setup "model=MODEL_B,gen=auto" ...
 evals start PLAN_ID --confirm-spend
 evals wait RUN_ID --timeout 600
 evals results RUN_ID --out results/
 evals continue RUN_ID --setup 2 --prompt-file next.md [--confirm-spend]
-evals sessions --days 30 --out audit/   # local only, uploads nothing
+evals sessions --days 7 --out audit/   # local only, uploads nothing
 evals tally verdicts/ --key key.json --weights weights.json
 ```
 
-`prepare` creates no run. `start` creates it, starts every setup and opens the run's blind comparison. Public runs can show the brief, inputs and results to anyone; use `--visibility private` when your account allows it.
+`prepare` creates no run. `start` creates it, starts every setup and opens the run's blind comparison. `--public` runs show the brief, inputs and results to anyone; `--private` needs an Evals Plus or Pro plan.
 
 ## Use Evals in ChatGPT
 

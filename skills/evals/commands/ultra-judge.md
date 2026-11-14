@@ -31,7 +31,7 @@ Write verdict.json, and nothing else, in exactly this shape:
 Size: 8 judges, or 4 with `--quick`. A different model per judge, one per lab, `gen=none`, `skill=none`, `effort=high`. Private by default: candidates are often unreleased work.
 
 ```sh
-evals prepare --visibility private --prompt-file judge-brief.md \
+evals prepare --private --prompt-file judge-brief.md \
   --input ID_A --input ID_B --input ID_C \
   --setup "model=JUDGE_1,gen=none,skill=none,effort=high" ...
 ```

@@ -14,7 +14,7 @@ Does this skill make the work better? The same model, brief, inputs and settings
 - One sample per side can mislead. With `--quick` run one control and one test; by default run two of each (the same setup twice), so the user can see how much a model varies on its own before crediting the skill.
 
 ```sh
-evals prepare --visibility private --prompt-file brief.md \
+evals prepare --private --prompt-file brief.md \
   --setup "model=MODEL,gen=none,skill=none,effort=high" \
   --setup "model=MODEL,gen=none,skill=none,effort=high" \
   --setup "model=MODEL,gen=none,skill=SKILL_ID,effort=high" \

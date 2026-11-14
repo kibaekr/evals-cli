@@ -1,3 +1,4 @@
+import argparse
 import contextlib
 import json
 import io
@@ -75,6 +76,8 @@ class LocalCommandTests(unittest.TestCase):
                 {"type": "event_msg", "timestamp": "2026-11-14T02:00:01Z", "payload": {"type": "item_completed", "item": {
                     "type": "UserMessage", "content": [{"type": "text", "text": "Make a sales deck"}]}}},
                 {"type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "McpToolCall", "server": "higgsfield", "tool": "generate_image"}}},
+                {"type": "event_msg", "timestamp": "2026-11-14T02:00:09Z", "payload": {"type": "item_completed", "item": {
+                    "type": "UserMessage", "content": [{"type": "text", "text": "Make a sales deck"}]}}},
                 {"type": "token_usage_record", "payload": {"thread_token_usage": {"input_tokens": 3, "output_tokens": 4, "total_tokens": 7}}},
             ])
             out = root / "out"
@@ -94,6 +97,12 @@ class LocalCommandTests(unittest.TestCase):
             self.assertEqual(claude_record["unparsed_lines"], 1)
             codex_record = records["codex"]
             self.assertEqual([m["text"] for m in codex_record["messages"]], ["Make a sales deck"])
+            self.assertEqual(codex_record["messages"][0]["repeats"], 2)
+            self.assertEqual(codex_record["messages"][0]["also_at"], ["2026-11-14T02:00:09Z"])
+            index = json.loads(out.joinpath("index.json").read_text())["index"]
+            codex_index = next(row for row in index if row["tool"] == "codex")
+            self.assertEqual((codex_index["messages_sent"], codex_index["distinct_messages"]), (2, 1))
+            self.assertEqual(codex_index["first_message"]["text"], "Make a sales deck")
             self.assertEqual(codex_record["tool_calls"], {"mcp:higgsfield:generate_image": 1})
             self.assertEqual(codex_record["usage"]["total_tokens"], 7)
             self.assertEqual(out.joinpath("index.json").stat().st_mode & 0o777, 0o600)
@@ -127,6 +136,33 @@ class LocalCommandTests(unittest.TestCase):
         self.assertEqual(ranking["B"]["mean_score_0_100"], 60.0)
         self.assertEqual(ranking["A"]["name"], "Opus direction")
         self.assertEqual(ranking["B"]["winner_reasons"], [{"judge": "Judge 2", "reason": "bolder"}])
+
+
+class VisibilityTests(unittest.TestCase):
+    def parse(self, *extra):
+        parser = argparse.ArgumentParser()
+        evals.plan_args(parser)
+        return parser.parse_args(list(extra))
+
+    def test_private_and_public_shorthands_and_one_required(self):
+        self.assertEqual(self.parse("--private").visibility, "private")
+        self.assertEqual(self.parse("--public").visibility, "public")
+        self.assertEqual(self.parse("--visibility", "public").visibility, "public")
+        with contextlib.redirect_stderr(io.StringIO()):
+            for extra in ((), ("--private", "--public")):
+                with self.assertRaises(SystemExit):
+                    self.parse(*extra)
+
+    @patch("evals.api", side_effect=evals.ApiError(403, "This account cannot create private runs."))
+    def test_private_refusal_names_the_plan_and_the_public_choice(self, api):
+        args = argparse.Namespace(
+            visibility="private", prompt="Brief", prompt_file=None, setup=None, model=["a", "b"], skill=None,
+            input=None, attachment_id=None, suggestion=None,
+        )
+        with self.assertRaises(ValueError) as caught:
+            evals.prepare("https://evals.ag", {"token": "t", "device_id": "d"}, args)
+        self.assertIn("Plus or Pro", str(caught.exception))
+        self.assertIn("--public", str(caught.exception))
 
 
 if __name__ == "__main__":

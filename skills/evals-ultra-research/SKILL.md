@@ -6,7 +6,7 @@ description: >-
   where they disagree and what nobody answered. Use when the user says "use evals ultra research",
   "/evals-ultra-research", or wants competitor research, a market map, a business plan or due
   diligence with no stone unturned.
-argument-hint: "[--quick] <brief>"
+argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 
 # evals ultra-research

@@ -20,7 +20,7 @@ Size: 2, or one setup per value the user names, at most 8. Find model IDs with `
 Repeat the fixed parts in every `--setup` so nothing defaults differently:
 
 ```sh
-evals prepare --visibility private --prompt-file brief.md \
+evals prepare --private --prompt-file brief.md \
   --setup "model=MODEL_ID,gen=none,skill=none,effort=high" \
   --setup "model=MODEL_ID,gen=none,skill=SKILL_ID,effort=high"
 ```

@@ -10,7 +10,7 @@ description: >-
   effort level against another). Use when the user types /evals or $evals, says "use evals ...", or
   asks to compare models, test a skill, make several AIs compete, get many directions, judge work with
   several models, research thoroughly, or audit how they use AI.
-argument-hint: "[compare-models|test-skills|ultra-design|ultra-deck|ultra-research|ultra-judge|ultra-audit|compare] [--quick] <brief>"
+argument-hint: "[compare-models|test-skills|ultra-design|ultra-deck|ultra-research|ultra-judge|ultra-audit|compare] [--quick] [--private|--public] <brief>"
 ---
 
 # Evals
