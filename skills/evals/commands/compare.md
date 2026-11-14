@@ -1,6 +1,6 @@
 # compare
 
-A controlled test: change exactly one thing and hold everything else fixed, so a difference in the results comes from that one thing.
+A controlled test: change exactly one thing and hold everything else fixed, so a difference in the results comes from that one thing. For models use `compare-models`; for skills use `test-skills`. This file covers the rest: Gen AI tools and effort levels.
 
 ## 1. Find the one variable
 
