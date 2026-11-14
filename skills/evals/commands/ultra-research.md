@@ -12,7 +12,7 @@ Upload files the question depends on (a deck to critique, a list to extend) and 
 
 ## 2. Setups
 
-Size: 8, or 4 with `--quick`. The strongest available model from each lab, so their blind spots differ; `gen=none`, `skill=auto`, and the highest `effort` each model offers (see `models`). Prefer models a connected account covers when the choice is otherwise equal.
+Size: 8, or 4 with `--quick`. The strongest available model from each lab, so their blind spots differ; `gen=none`, `skill=auto`, and the highest `effort` each model offers (see `models`). Prefer models a connected account covers when the choice is otherwise equal. For ChatGPT-connected models, add `runtime=native` when `models` shows `native_codex: true`: OpenAI's Codex agent searches the web itself, while Evals' agent loop browses with plain HTTP requests.
 
 ```sh
 evals prepare --private --prompt-file question.md \

@@ -165,5 +165,22 @@ class VisibilityTests(unittest.TestCase):
         self.assertIn("--public", str(caught.exception))
 
 
+class RuntimeAndDirectTests(unittest.TestCase):
+    def test_native_runtime_and_a_single_direct_setup(self):
+        self.assertEqual(evals.parse_setup("model=openai/gpt-6.1-sol,runtime=native")["runtime"], "native-codex")
+        with self.assertRaises(ValueError):
+            evals.parse_setup("model=x,runtime=fast")
+        args = argparse.Namespace(
+            visibility="private", prompt="Brief", prompt_file=None, setup=["model=a"], model=None, skill=None,
+            input=None, attachment_id=None, suggestion=None,
+        )
+        self.assertEqual(len(evals.plan_body(args)["options"]), 1)
+        args.setup = ["model=a"] * 9
+        with self.assertRaises(ValueError):
+            evals.plan_body(args)
+        line = evals.option_line({"name": "GPT-6.1 Sol", "route": "codex", "runtime": "native-codex", "skill": "auto"})
+        self.assertIn("native Codex", line)
+
+
 if __name__ == "__main__":
     unittest.main()

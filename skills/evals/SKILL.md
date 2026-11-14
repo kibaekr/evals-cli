@@ -10,7 +10,7 @@ description: >-
   effort level against another). Use when the user types /evals or $evals, says "use evals ...", or
   asks to compare models, test a skill, make several AIs compete, get many directions, judge work with
   several models, research thoroughly, or audit how they use AI.
-argument-hint: "[compare-models|test-skills|ultra-design|ultra-deck|ultra-research|ultra-judge|ultra-audit|compare] [--quick] [--private|--public] <brief>"
+argument-hint: "[compare-models|test-skills|ultra-design|ultra-deck|ultra-research|ultra-judge|ultra-audit|compare|direct] [--quick] [--private|--public] <brief>"
 ---
 
 # Evals
@@ -19,7 +19,7 @@ What the user typed after `/evals`, `$evals` or "use evals": `$ARGUMENTS`
 
 ## Pick the command
 
-If the first words name a command (`compare-models`, `test-skills`, `ultra-design`, `ultra-deck`, `ultra-research`, `ultra-judge`, `ultra-audit`, `compare`; with or without the `ultra-` prefix, with spaces instead of hyphens, singular or plural, such as "compare models" or "test skill"), that is the command and the rest is the brief.
+If the first words name a command (`compare-models`, `test-skills`, `ultra-design`, `ultra-deck`, `ultra-research`, `ultra-judge`, `ultra-audit`, `compare`, `direct`; with or without the `ultra-` prefix, with spaces instead of hyphens, singular or plural, such as "compare models" or "test skill"), that is the command and the rest is the brief.
 
 Otherwise choose from the request:
 
@@ -33,6 +33,7 @@ Otherwise choose from the request:
 | which model does a job best, with models they name or ones Evals proposes | `compare-models` |
 | whether a skill makes the work better than no skill | `test-skills` |
 | whether one Gen AI tool or effort level beats another on a brief | `compare` |
+| one model on one brief, to keep working on it | `direct` |
 
 If the request only asks to edit text or review work in chat, do that without Evals. If it is still unclear, ask one short question.
 

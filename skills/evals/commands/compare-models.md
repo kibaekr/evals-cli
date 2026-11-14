@@ -12,7 +12,7 @@ Size: the number of models named, otherwise 4, or 8 if the user asks for a wide 
 
 ## 2. Hold everything else fixed
 
-Every setup gets the same skill choice (`skill=auto` unless the user said otherwise), the same Gen AI choice (`gen=none`, or `gen=auto` for all when the brief needs images or video) and the same effort level where each model offers it. A Battle suggestion may also pick a different Gen AI tool or skill per setup; for a model comparison, keep only its models and rebuild the lineup with identical settings:
+Every setup gets the same skill choice (`skill=auto` unless the user said otherwise), the same Gen AI choice (`gen=none`, or `gen=auto` for all when the brief needs images or video) and the same effort level where each model offers it. Each model runs in its own maker's agent where it can: Claude models on a connected Claude account already do, and ChatGPT-connected models do with `runtime=native` when `models` shows `native_codex: true`. Say in the review which agent each setup runs in. A Battle suggestion may also pick a different Gen AI tool or skill per setup; for a model comparison, keep only its models and rebuild the lineup with identical settings:
 
 ```sh
 evals prepare --private --prompt-file brief.md \
