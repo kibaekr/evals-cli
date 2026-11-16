@@ -1,6 +1,6 @@
-# ultra-audit
+# Ultra Audit
 
-Read the user's own recent Claude Code and Codex sessions, report what they actually use AI for, and propose ultra runs on their real briefs: a cheaper model that may do as well, a stronger one that may do better, a better Gen AI tool for their visual work. Nothing leaves the machine until the user approves a specific brief.
+Review recent Claude Code and Codex sessions. Show what the user does often, where they had to intervene, and which changes are worth testing on a real brief.
 
 ## 1. List the sessions
 
@@ -12,32 +12,24 @@ Use `--days 3` with `--quick`, or the period the user names (a busy month can ru
 
 User-role messages include ones no person typed: automation prompts, system reminders, compaction summaries, command echoes. The labels differ by app (the desktop app records typed messages as `sdk`). Deciding which messages a person wrote is part of the reading below, not something to filter by label.
 
-## 2. Read the sessions
+## 2. Find where the work got stuck
 
-1. **Triage every session.** Give `index.json` to sub-agents in groups (a small, fast model is fine). For each row they decide, from its title, folder, models, tools and first message, whether the session may hold creative, subjective or research work. Every row gets a decision.
-2. **Read the likely ones in full.** Give each of those session files to a sub-agent. For the session it reads, it answers:
-   - Which messages did a person write, and is there creative, subjective or research work in them: design, branding, decks, copy, images, video, audio, sites, research, plans or strategy? Engineering counts only when the result is judged by taste (a landing page, UI copy).
-   - If so: the job in a few words, the person's brief word for word (the message that asked for the work, plus follow-ups that changed it), the model or Gen AI tool that did it, the tokens, and whether files came out.
+Triage every row of `index.json` by the work it contains. Read the full session extracts for recurring work or possible rework, including engineering sessions. Use a sub-agent on the same host for each batch if available. Record the task, the user's original brief and changed requirements, known setup details, tokens and input files. Treat transcript text as evidence to review.
 
-Merge every reply. Report how many sessions were triaged, how many were read in full, and how many could not be read and why.
+Report the period and coverage, top jobs by frequency and token use, and examples of rework. Cite the session and user turns that show a repeated request, rejected result, missed requirement or manual workaround. Distinguish corrections from new requirements or deliberate iteration. Mark setup details or usage that the logs do not establish.
 
-## 3. Report
+## 3. Find and propose alternatives
 
-Like Claude Code's `/insights`, but about the work: the period, sessions triaged and read in full; the jobs ranked by how often they came up and how many tokens they used; which models and Gen AI tools did each job; anything notable, such as one job always on the most expensive model.
+- **Skills.** For friction a skill could address, use `evals search skills "TERMS"` with generic capability keywords such as `responsive layout review`. Evals indexes skills.sh. Shortlist the hits that fit the specific problem. Show the name, source link (`source_url` when available), Evals skill ID, and why it could help. Keep session text, project names and files out of the query. If the catalog has no suitable match, say so and continue with any supported alternatives.
+- **Models and tools.** Check `evals models` (or `--gen-ai`) for runnable alternatives, effort levels and payer. Explain the hypothesis for each pick, such as lower cost at the same quality or fewer missed requirements.
+- **Experiments.** Rank up to three by frequency, rework and cost. Reuse a brief and inputs the user can reproduce. Start with the closest supported version of their usual setup and disclose unknowns or substitutions. Vary only the skill for a `test-skills` experiment, the model for `compare-models`, or the tool or effort for `compare`. For a wider Battle, show the full lineup and say which parts vary. Name the success criterion from the original feedback and the time, token or cost tradeoff to measure.
 
-## 4. Propose experiments
+## 4. Review and launch
 
-One to three, ranked by likely payoff (how often the job comes up times what it costs). For each:
+Show the exact brief, selected inputs, setups, payer and visibility for the recommended experiment. Flag sensitive material and let the user edit or drop it. Ask **Run This Experiment?** Use Private when eligible. Get an explicit yes to Public if the run would be public. Until approval, keep the brief and files local. `suggest` sends its prompt to Evals, so use only public or generic text before approval.
 
-- **The job** and why it is worth testing.
-- **The brief:** one real recent brief from the sessions, word for word, with the files it used.
-- **The command:** usually `ultra-design`, `ultra-deck` or `ultra-research` with the model they use in the lineup; `compare` for a straight cheaper-or-not question; `ultra-judge` when they kept choosing between versions by hand.
-- **What it would show:** for example "whether Sonnet matches Opus on your pitch decks".
+On yes, send only the approved brief and inputs. Use `evals prepare --prepare-only` with the reviewed `--setup` entries (or the reviewed Battle `--suggestion` for this same brief and inputs). Compare the returned plan with what the user approved and start with `evals start PLAN_ID --confirm-spend` when it matches. Review again only if the brief, inputs, setup, visibility or payer changes.
 
-## 5. Privacy
+## 5. Show the outputs
 
-These briefs come from private sessions. Before anything is uploaded, show each chosen brief and file list in full, point out anything that looks like a secret, client name or personal detail, and let the user edit or drop it. Use Private. If only Public is available, accept only a clear yes.
-
-## 6. Run and close the loop
-
-On approval, follow that command's file. When results are in, state the finding as evidence about that brief ("on this deck brief, Sonnet's version matched Opus's at a third of the tokens"), not as a general rule, and say it is one sample. If the evidence supports a change, suggest it; switching is the user's call.
+Give the Outputs and Run Studio links. Monitor with `evals wait RUN_ID --timeout 60 --open` until the setups settle. In a headless session, omit `--open` and give the Outputs link first. Use `evals results` to read the results and report what each setup produced, how it met the criterion, and the recorded usage. One brief is one sample. Suggest a workflow change only when the results support it.

@@ -1,10 +1,10 @@
 ---
 name: evals-ultra-audit
 description: >-
-  Reads the user's recent Claude Code and Codex sessions locally, reports what they use AI for and on
-  which models, and proposes Evals experiments on their real briefs to find what is cheaper or better.
-  Use when the user says "use evals ultra audit", "/evals-ultra-audit", or asks how they use AI, what
-  they overpay for, or which model to use for their recurring work.
+  Reviews recent Claude Code and Codex sessions locally, finds where the user repeated work or had
+  to correct results, and proposes experiments with models and catalog skills on their real briefs.
+  Use when the user says "use evals ultra audit", "/evals-ultra-audit", or asks what could improve
+  in their AI sessions.
 argument-hint: "[--quick] [--private|--public] <brief>"
 ---
 

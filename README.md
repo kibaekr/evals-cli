@@ -18,7 +18,7 @@ Type them in Claude Code (`/evals …`) or Codex (`$evals …`), or just say "us
 | `/evals ultra-deck` | Eight sales, marketing, pitch or strategy decks from your notes and files. | `/evals ultra-deck a 10-slide seed pitch from this memo` |
 | `/evals ultra-research` | Eight agents research one question with web access; one merged report of what they agreed on, what only one found, where they disagree and what nobody answered. | `/evals ultra-research every company selling eval data to AI labs: pricing, customers, funding` |
 | `/evals ultra-judge` | A council of eight models scores your candidates blind against one rubric, with the votes tallied and how much the judges agreed. | `/evals ultra-judge which of these five ad cuts holds a viewer past three seconds` |
-| `/evals ultra-audit` | Reads your recent Claude Code and Codex sessions on your machine, reports what you use AI for, and proposes runs on your real briefs to find what is cheaper or better. | `/evals ultra-audit` |
+| `/evals ultra-audit` | Finds recurring work and rework in recent Claude Code and Codex sessions. Looks up skills from the Evals catalog, including skills.sh, and proposes experiments with skills, models or tools on a real brief. Opens Outputs after the experiment settles. | `/evals ultra-audit` |
 | `/evals compare` | A controlled test of one Gen AI tool or effort level against another. | `/evals compare Kling vs Veo for this product clip` |
 | `/evals direct` | One model on one brief, then keep working on it. | `/evals direct GPT-6.1 Sol: a landing page for my bakery` |
 
@@ -32,7 +32,7 @@ Paste this into Claude Code or Codex:
 
 > Install the Evals skills from https://github.com/kibaekr/evals-cli for this agent: copy every folder under `skills/` into my skills folder. Then run `python3 <skills folder>/evals/scripts/evals.py login` and show me the approval link.
 
-The repository is currently private; GitHub access is required to clone it. The bundled CLI needs Python 3.10 or newer and only the standard library.
+Anyone can clone this repository. The bundled CLI needs Python 3.10 or newer and only the standard library.
 
 ### Manually
 
@@ -58,6 +58,7 @@ Plugin skills are namespaced (`/evals:evals ultra-design`, `/evals:evals-ultra-d
 ## Use the terminal
 
 ```sh
+mkdir -p ~/.local/bin
 install -m 755 skills/evals/scripts/evals.py ~/.local/bin/evals
 evals --help
 ```
@@ -67,13 +68,14 @@ If another `evals` is already on your PATH (npm's `evals` package installs one),
 ```sh
 evals whoami                      # account and Private eligibility
 evals models [--gen-ai]           # LLMs, or Gen AI tools, with who pays
+evals search skills "responsive layout review"
 evals upload logo.png notes.pdf   # input IDs
 evals suggest --prompt-file brief.md --count 8 > suggestion.json   # Evals' Battle lineup
-evals prepare --private --prompt-file brief.md --suggestion suggestion.json
-evals prepare --private --prompt-file brief.md \
+evals prepare --prepare-only --private --prompt-file brief.md --suggestion suggestion.json
+evals prepare --prepare-only --private --prompt-file brief.md \
   --setup "model=MODEL_A,gen=auto,effort=high" --setup "model=MODEL_B,gen=auto,runtime=native" ...
 evals start PLAN_ID --confirm-spend
-evals wait RUN_ID --timeout 600
+evals wait RUN_ID --timeout 600 --open
 evals results RUN_ID --out results/
 evals continue RUN_ID --setup 2 --prompt-file next.md [--confirm-spend]
 evals retry RUN_ID --setup 2 [--confirm-spend]       # the run page's Retry
@@ -81,7 +83,7 @@ evals sessions --days 7 --out audit/   # local only, uploads nothing
 evals tally verdicts/ --key key.json --weights weights.json
 ```
 
-`prepare` creates no run. `start` creates it, starts every setup and opens the run's blind comparison. `--public` runs show the brief, inputs and results to anyone; `--private` needs an Evals Plus or Pro plan.
+`prepare --prepare-only` returns a plan for review. `start` launches it and prints links to Outputs and Run Studio. `wait --open` opens the experiment's Outputs page once all setups settle. Sign into the run's account for private outputs. Run Studio has progress, voting and retries. Public runs make the brief, inputs and results visible to anyone. Private runs need an Evals Plus or Pro plan.
 
 ## Use Evals in ChatGPT
 

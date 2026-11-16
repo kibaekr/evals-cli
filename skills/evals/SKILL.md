@@ -6,7 +6,7 @@ description: >-
   proposed by Evals), test-skills (a skill against a no-skill control on the same model), ultra-design
   (eight design or brand directions), ultra-deck (eight decks), ultra-research (eight agents research
   one question, merged), ultra-judge (a council of eight models scores work blind), ultra-audit (reads
-  your recent Claude Code and Codex sessions and proposes experiments), compare (one Gen AI tool or
+  recent Claude Code and Codex sessions and proposes model and skill experiments), compare (one Gen AI tool or
   effort level against another). Use when the user types /evals or $evals, says "use evals ...", or
   asks to compare models, test a skill, make several AIs compete, get many directions, judge work with
   several models, research thoroughly, or audit how they use AI.
@@ -29,7 +29,7 @@ Otherwise choose from the request:
 | a sales, marketing, pitch or strategy deck | `ultra-deck` |
 | a question investigated thoroughly: competitors, market, business plan, due diligence | `ultra-research` |
 | existing work scored, or a winner picked, by several models | `ultra-judge` |
-| to learn what they use AI for and what could be cheaper or better | `ultra-audit` |
+| to find where their AI sessions needed rework and test a different setup | `ultra-audit` |
 | which model does a job best, with models they name or ones Evals proposes | `compare-models` |
 | whether a skill makes the work better than no skill | `test-skills` |
 | whether one Gen AI tool or effort level beats another on a brief | `compare` |

@@ -182,5 +182,51 @@ class RuntimeAndDirectTests(unittest.TestCase):
         self.assertIn("native Codex", line)
 
 
+class OutputsTests(unittest.TestCase):
+    site = "https://evals.ag"
+    run_id = "run_" + "1" * 26
+    outputs_url = site + "/outputs/run/" + run_id
+    review_url = site + "/runs/" + run_id
+
+    @patch("evals.api", return_value={})
+    def test_start_and_download_link_to_same_run(self, api):
+        device = {"token": "fixture"}
+        started = evals.start(self.site, device, {
+            "run_id": self.run_id, "options": [{}, {}], "envelope": "signed",
+            "expires_at": "2099-01-01T00:00:00Z",
+        })
+        api.return_value = {"setups": []}
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = evals.results(self.site, device, self.run_id, Path(directory))
+            stored = json.loads(Path(directory, "manifest.json").read_text())
+        for result in (started, manifest, stored):
+            self.assertEqual(result["outputs_url"], self.outputs_url)
+            self.assertEqual(result["review_url"], self.review_url)
+
+    @patch("evals.credential", return_value={"token": "fixture"})
+    @patch("evals.webbrowser.open_new", return_value=True)
+    @patch("evals.api")
+    def test_wait_opens_outputs_only_when_requested_and_settled(self, api, browser, credential):
+        for requested, finished in ((False, True), (True, False), (True, True)):
+            with self.subTest(requested=requested, finished=finished):
+                browser.reset_mock()
+                api.return_value = {"setup_count": 2, "attempts": [
+                    {"setup_index": 0, "status": "completed"},
+                    {"setup_index": 1, "status": "failed" if finished else "running"},
+                ]}
+                args = ["wait", self.run_id, "--timeout", "1"] + (["--open"] if requested else [])
+                with patch("evals.origin", return_value=self.site), patch("evals.time.monotonic", side_effect=[0, 1]), contextlib.redirect_stdout(io.StringIO()) as stdout:
+                    self.assertEqual(evals.main(args), 0)
+                result = json.loads(stdout.getvalue())
+                self.assertEqual(result["outputs_url"], self.outputs_url)
+                self.assertEqual(result["review_url"], self.review_url)
+                self.assertEqual(result["wait_timed_out"], not finished)
+                if requested and finished:
+                    browser.assert_called_once_with(self.outputs_url)
+                    self.assertTrue(result["browser_opened"])
+                else:
+                    browser.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
