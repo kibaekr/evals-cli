@@ -32,4 +32,4 @@ On yes, send only the approved brief and inputs. Use `evals prepare --prepare-on
 
 ## 5. Show the outputs
 
-Give the Outputs and Run Studio links. Monitor with `evals wait RUN_ID --timeout 60 --open` until the setups settle. In a headless session, omit `--open` and give the Outputs link first. Use `evals results` to read the results and report what each setup produced, how it met the criterion, and the recorded usage. One brief is one sample. Suggest a workflow change only when the results support it.
+Monitor with `evals wait RUN_ID --timeout 60 --open` until the setups settle. Lead with the published `/outputs/out_…` link when available. In a headless session, omit `--open` and return the link. If a public run with generated files settles before the link appears, check `evals status` after publication has had time to finish. Use `evals results` to read the results and provide the downloaded files when there is no published page. Report what each setup produced, how it met the criterion, and the recorded usage. One brief is one sample. Suggest a workflow change only when the results support it.

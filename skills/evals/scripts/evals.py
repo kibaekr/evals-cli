@@ -20,16 +20,18 @@ import urllib.parse
 import urllib.request
 import uuid
 import webbrowser
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 BASE = "https://evals.ag"
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 USER_AGENT = f"evals-cli/{VERSION}"
 TOKEN = re.compile(r"evcli_[A-Za-z0-9_-]{43}")
 PLAN_ID = re.compile(r"req_[0-7][0-9A-HJKMNP-TV-Z]{25}")
 RUN_ID = re.compile(r"run_[0-7][0-9A-HJKMNP-TV-Z]{25}")
+OUTPUT_ID = re.compile(r"out_[A-Za-z0-9_-]{1,100}")
 DONE = {"completed", "failed", "cancelled", "waiting_for_input"}
 PAYER = {
     "openrouter": "OpenRouter · Evals Balance",
@@ -402,8 +404,12 @@ def public_plan(plan: dict, site: str) -> dict:
     }
 
 
-def run_links(site: str, run_id: str) -> dict[str, str]:
-    return {"review_url": f"{site}/runs/{run_id}", "outputs_url": f"{site}/outputs/run/{run_id}"}
+def published_output_url(site: str, visibility: str | None, output_ids: Iterable[str | None]) -> str | None:
+    if visibility == "public":
+        for output_id in output_ids:
+            if isinstance(output_id, str) and OUTPUT_ID.fullmatch(output_id):
+                return f"{site}/outputs/{output_id}"
+    return None
 
 
 def start(site: str, device: dict, plan: dict) -> dict:
@@ -425,26 +431,43 @@ def start(site: str, device: dict, plan: dict) -> dict:
     count = len(plan["options"])
     with concurrent.futures.ThreadPoolExecutor(max_workers=count) as pool:
         results = list(pool.map(submit, range(count)))
-    return {"run_id": plan["run_id"], **run_links(site, plan["run_id"]), "options": results}
+    run_id = plan["run_id"]
+    return {"run_id": run_id, "review_url": f"{site}/runs/{run_id}", "outputs_url": None, "options": results}
 
 
 def run_status(site: str, device: dict, run_id: str) -> dict:
     if not RUN_ID.fullmatch(run_id):
         raise ValueError("Enter a run ID returned by Evals.")
     run = api(site, "/cli/runs/" + run_id, token=device["token"])
-    return {**run, **run_links(site, run_id)}
+    attempts = sorted(run["attempts"], key=lambda row: row["setup_index"])
+    output_url = published_output_url(site, run.get("visibility"), (row.get("published_output_id") for row in attempts))
+    return {**run, "review_url": f"{site}/runs/{run_id}", "outputs_url": output_url}
 
 
-def wait_for_run(site: str, device: dict, run_id: str, seconds: int) -> dict:
+def wait_for_run(site: str, device: dict, run_id: str, seconds: int, wait_for_output: bool = False) -> dict:
     deadline = time.monotonic() + seconds
+    publication_deadline = None
     while True:
         run = run_status(site, device, run_id)
         latest = {row["setup_index"]: row for row in reversed(run["attempts"])}
-        if len(latest) == run["setup_count"] and all(row["status"] in DONE for row in latest.values()):
-            return {**run, "wait_timed_out": False}
-        remaining = deadline - time.monotonic()
+        settled = len(latest) == run["setup_count"] and all(row["status"] in DONE for row in latest.values())
+        now = time.monotonic()
+        remaining = deadline - now
+        if settled:
+            publishing = wait_for_output and run.get("visibility") == "public" and not run["outputs_url"] and any(
+                row["status"] == "completed" and any(not name.startswith("inputs/") for name in row.get("artifacts", []))
+                for row in latest.values()
+            )
+            if not publishing:
+                return {**run, "wait_timed_out": False}
+            # An output ID can arrive on a later publication sweep than the terminal attempt status.
+            if publication_deadline is None:
+                publication_deadline = now + 30
+            remaining = min(remaining, publication_deadline - now)
+        else:
+            publication_deadline = None
         if remaining <= 0:
-            return {**run, "wait_timed_out": True}
+            return {**run, "wait_timed_out": not settled}
         time.sleep(min(4, remaining))
 
 
@@ -480,7 +503,8 @@ def results(site: str, device: dict, run_id: str, out: Path) -> dict:
         raise ValueError("Enter a run ID returned by Evals.")
     data = api(site, f"/cli/runs/{run_id}/results", token=device["token"], timeout=60)
     out.mkdir(parents=True, exist_ok=True)
-    manifest = {"run_id": run_id, **run_links(site, run_id), "setups": [], "problems": []}
+    output_url = published_output_url(site, data.get("visibility"), (setup.get("output_id") for setup in data["setups"]))
+    manifest = {"run_id": run_id, "review_url": f"{site}/runs/{run_id}", "outputs_url": output_url, "setups": [], "problems": []}
     for setup in data["setups"]:
         folder = f"setup-{setup['setup_index'] + 1}"
         entry = {
@@ -922,7 +946,7 @@ def main(argv: list[str] | None = None) -> int:
     wait = sub.add_parser("wait", help="Wait for the current options to settle or need input")
     wait.add_argument("run_id")
     wait.add_argument("--timeout", type=int, choices=range(1, 601), metavar="SECONDS", default=120)
-    wait.add_argument("--open", action="store_true", help="Open Outputs in your browser once every setup settles")
+    wait.add_argument("--open", action="store_true", help="Open a published output after every setup settles")
     fetch = sub.add_parser("results", help="Download every setup's latest result into a folder")
     fetch.add_argument("run_id")
     fetch.add_argument("--out", type=Path, required=True)
@@ -982,12 +1006,14 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "status":
             output(run_status(site, device, args.run_id))
         elif args.command == "wait":
-            run = wait_for_run(site, device, args.run_id, args.timeout)
+            run = wait_for_run(site, device, args.run_id, args.timeout, wait_for_output=args.open)
             if args.open and not run["wait_timed_out"]:
-                try:
-                    run["browser_opened"] = webbrowser.open_new(run["outputs_url"])
-                except (OSError, webbrowser.Error):
-                    run["browser_opened"] = False
+                run["browser_opened"] = False
+                if run["outputs_url"]:
+                    try:
+                        run["browser_opened"] = webbrowser.open_new(run["outputs_url"])
+                    except (OSError, webbrowser.Error):
+                        pass
             output(run)
         elif args.command == "results":
             output(results(site, device, args.run_id, args.out.expanduser()))

@@ -18,7 +18,7 @@ Type them in Claude Code (`/evals …`) or Codex (`$evals …`), or just say "us
 | `/evals ultra-deck` | Eight sales, marketing, pitch or strategy decks from your notes and files. | `/evals ultra-deck a 10-slide seed pitch from this memo` |
 | `/evals ultra-research` | Eight agents research one question with web access; one merged report of what they agreed on, what only one found, where they disagree and what nobody answered. | `/evals ultra-research every company selling eval data to AI labs: pricing, customers, funding` |
 | `/evals ultra-judge` | A council of eight models scores your candidates blind against one rubric, with the votes tallied and how much the judges agreed. | `/evals ultra-judge which of these five ad cuts holds a viewer past three seconds` |
-| `/evals ultra-audit` | Finds recurring work and rework in recent Claude Code and Codex sessions. Looks up skills from the Evals catalog, including skills.sh, and proposes experiments with skills, models or tools on a real brief. Opens Outputs after the experiment settles. | `/evals ultra-audit` |
+| `/evals ultra-audit` | Finds recurring work and rework in recent Claude Code and Codex sessions. Looks up skills from the Evals catalog, including skills.sh, and proposes experiments with skills, models or tools on a real brief. Opens a published output when available. | `/evals ultra-audit` |
 | `/evals compare` | A controlled test of one Gen AI tool or effort level against another. | `/evals compare Kling vs Veo for this product clip` |
 | `/evals direct` | One model on one brief, then keep working on it. | `/evals direct GPT-6.1 Sol: a landing page for my bakery` |
 
@@ -83,7 +83,7 @@ evals sessions --days 7 --out audit/   # local only, uploads nothing
 evals tally verdicts/ --key key.json --weights weights.json
 ```
 
-`prepare --prepare-only` returns a plan for review. `start` launches it and prints links to Outputs and Run Studio. `wait --open` opens the experiment's Outputs page once all setups settle. Sign into the run's account for private outputs. Run Studio has progress, voting and retries. Public runs make the brief, inputs and results visible to anyone. Private runs need an Evals Plus or Pro plan.
+`prepare --prepare-only` returns a plan for review. `start` launches it and prints the run ID. After the setups settle, `wait --open` opens a published result at `/outputs/out_…`. Other published results for the task are available under **From This Task**. For a private run or a result without a published page, use `results` to download it. Public runs make the brief, inputs and results visible to anyone. Private runs need an Evals Plus or Pro plan.
 
 ## Use Evals in ChatGPT
 

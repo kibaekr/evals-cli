@@ -185,47 +185,78 @@ class RuntimeAndDirectTests(unittest.TestCase):
 class OutputsTests(unittest.TestCase):
     site = "https://evals.ag"
     run_id = "run_" + "1" * 26
-    outputs_url = site + "/outputs/run/" + run_id
+    output_id = "out_" + "2" * 26
+    outputs_url = site + "/outputs/" + output_id
     review_url = site + "/runs/" + run_id
 
     @patch("evals.api", return_value={})
-    def test_start_and_download_link_to_same_run(self, api):
+    def test_start_and_results_publish_link_only_when_known(self, api):
         device = {"token": "fixture"}
         started = evals.start(self.site, device, {
             "run_id": self.run_id, "options": [{}, {}], "envelope": "signed",
             "expires_at": "2099-01-01T00:00:00Z",
         })
-        api.return_value = {"setups": []}
+        self.assertEqual(started["review_url"], self.review_url)
+        self.assertIsNone(started["outputs_url"])
+        api.return_value = {"visibility": "public", "setups": [{"setup_index": 0, "output_id": self.output_id}]}
         with tempfile.TemporaryDirectory() as directory:
             manifest = evals.results(self.site, device, self.run_id, Path(directory))
             stored = json.loads(Path(directory, "manifest.json").read_text())
-        for result in (started, manifest, stored):
+        for result in (manifest, stored):
             self.assertEqual(result["outputs_url"], self.outputs_url)
             self.assertEqual(result["review_url"], self.review_url)
 
     @patch("evals.credential", return_value={"token": "fixture"})
     @patch("evals.webbrowser.open_new", return_value=True)
     @patch("evals.api")
-    def test_wait_opens_outputs_only_when_requested_and_settled(self, api, browser, credential):
-        for requested, finished in ((False, True), (True, False), (True, True)):
-            with self.subTest(requested=requested, finished=finished):
+    def test_wait_only_opens_a_published_output_after_settling(self, api, browser, credential):
+        cases = ((False, True, "public", self.output_id), (True, False, "public", self.output_id),
+                 (True, True, "public", self.output_id), (True, True, "private", self.output_id),
+                 (True, True, "public", None))
+        for requested, finished, visibility, output_id in cases:
+            with self.subTest(requested=requested, finished=finished, visibility=visibility, output_id=output_id):
                 browser.reset_mock()
-                api.return_value = {"setup_count": 2, "attempts": [
-                    {"setup_index": 0, "status": "completed"},
+                api.return_value = {"setup_count": 2, "visibility": visibility, "attempts": [
+                    {"setup_index": 0, "status": "completed", "published_output_id": output_id},
                     {"setup_index": 1, "status": "failed" if finished else "running"},
                 ]}
                 args = ["wait", self.run_id, "--timeout", "1"] + (["--open"] if requested else [])
                 with patch("evals.origin", return_value=self.site), patch("evals.time.monotonic", side_effect=[0, 1]), contextlib.redirect_stdout(io.StringIO()) as stdout:
                     self.assertEqual(evals.main(args), 0)
                 result = json.loads(stdout.getvalue())
-                self.assertEqual(result["outputs_url"], self.outputs_url)
+                expected_url = self.outputs_url if visibility == "public" and output_id else None
+                self.assertEqual(result["outputs_url"], expected_url)
                 self.assertEqual(result["review_url"], self.review_url)
                 self.assertEqual(result["wait_timed_out"], not finished)
-                if requested and finished:
+                if requested and finished and expected_url:
                     browser.assert_called_once_with(self.outputs_url)
                     self.assertTrue(result["browser_opened"])
                 else:
                     browser.assert_not_called()
+
+    @patch("evals.time.sleep")
+    @patch("evals.api")
+    def test_wait_allows_a_public_artifact_to_be_indexed(self, api, sleep):
+        attempt = {"setup_index": 0, "status": "completed", "artifacts": ["index.html"]}
+        run = {"setup_count": 1, "visibility": "public", "attempts": [attempt]}
+        api.side_effect = [run, {**run, "attempts": [{**attempt, "published_output_id": self.output_id}]}]
+        with patch("evals.time.monotonic", side_effect=[0, 1, 5]):
+            result = evals.wait_for_run(self.site, {"token": "fixture"}, self.run_id, 10, wait_for_output=True)
+        sleep.assert_called_once_with(4)
+        self.assertEqual(result["outputs_url"], self.outputs_url)
+        self.assertFalse(result["wait_timed_out"])
+
+    @patch("evals.time.sleep")
+    @patch("evals.api")
+    def test_publication_wait_respects_timeout_without_marking_run_unfinished(self, api, sleep):
+        api.return_value = {"setup_count": 1, "visibility": "public", "attempts": [
+            {"setup_index": 0, "status": "completed", "artifacts": ["index.html"]},
+        ]}
+        with patch("evals.time.monotonic", side_effect=[0, 1]):
+            result = evals.wait_for_run(self.site, {"token": "fixture"}, self.run_id, 1, wait_for_output=True)
+        sleep.assert_not_called()
+        self.assertIsNone(result["outputs_url"])
+        self.assertFalse(result["wait_timed_out"])
 
 
 if __name__ == "__main__":
