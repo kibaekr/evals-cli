@@ -1,6 +1,6 @@
 {
   "name": "evals",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Run one task on up to eight AI setups through Evals: ultra-design, ultra-deck, ultra-research, ultra-judge, ultra-audit and compare.",
   "author": {
     "name": "Evals"

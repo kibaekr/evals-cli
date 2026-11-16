@@ -26,12 +26,13 @@ from pathlib import Path
 from typing import Any
 
 BASE = "https://evals.ag"
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 USER_AGENT = f"evals-cli/{VERSION}"
 TOKEN = re.compile(r"evcli_[A-Za-z0-9_-]{43}")
 PLAN_ID = re.compile(r"req_[0-7][0-9A-HJKMNP-TV-Z]{25}")
 RUN_ID = re.compile(r"run_[0-7][0-9A-HJKMNP-TV-Z]{25}")
 OUTPUT_ID = re.compile(r"out_[A-Za-z0-9_-]{1,100}")
+EXECUTION_ID = re.compile(r"exc_[0-7][0-9A-HJKMNP-TV-Z]{25}")
 DONE = {"completed", "failed", "cancelled", "waiting_for_input"}
 PAYER = {
     "openrouter": "OpenRouter · Evals Balance",
@@ -404,11 +405,23 @@ def public_plan(plan: dict, site: str) -> dict:
     }
 
 
-def published_output_url(site: str, visibility: str | None, output_ids: Iterable[str | None]) -> str | None:
+def public_output_url(site: str, visibility: str | None, output_ids: Iterable[str | None]) -> str | None:
     if visibility == "public":
         for output_id in output_ids:
             if isinstance(output_id, str) and OUTPUT_ID.fullmatch(output_id):
                 return f"{site}/outputs/{output_id}"
+    return None
+
+
+def has_output_files(names: Iterable[str]) -> bool:
+    return any(not name.startswith("inputs/") for name in names)
+
+
+def execution_output_url(
+    site: str, run_id: str, execution_id: str | None, status: str | None, files: Iterable[str],
+) -> str | None:
+    if status == "completed" and execution_id and EXECUTION_ID.fullmatch(execution_id) and has_output_files(files):
+        return f"{site}/view/runs/{run_id}/{execution_id}"
     return None
 
 
@@ -440,7 +453,12 @@ def run_status(site: str, device: dict, run_id: str) -> dict:
         raise ValueError("Enter a run ID returned by Evals.")
     run = api(site, "/cli/runs/" + run_id, token=device["token"])
     attempts = sorted(run["attempts"], key=lambda row: row["setup_index"])
-    output_url = published_output_url(site, run.get("visibility"), (row.get("published_output_id") for row in attempts))
+    output_url = public_output_url(site, run.get("visibility"), (row.get("published_output_id") for row in attempts))
+    if output_url is None:
+        for row in attempts:
+            output_url = execution_output_url(site, run_id, row.get("id"), row["status"], row.get("artifacts", []))
+            if output_url:
+                break
     return {**run, "review_url": f"{site}/runs/{run_id}", "outputs_url": output_url}
 
 
@@ -454,11 +472,13 @@ def wait_for_run(site: str, device: dict, run_id: str, seconds: int, wait_for_ou
         now = time.monotonic()
         remaining = deadline - now
         if settled:
-            publishing = wait_for_output and run.get("visibility") == "public" and not run["outputs_url"] and any(
-                row["status"] == "completed" and any(not name.startswith("inputs/") for name in row.get("artifacts", []))
+            url = run["outputs_url"]
+            has_public_link = url is not None and url.startswith(f"{site}/outputs/")
+            awaiting_public_link = wait_for_output and run.get("visibility") == "public" and not has_public_link and any(
+                row["status"] == "completed" and has_output_files(row.get("artifacts", []))
                 for row in latest.values()
             )
-            if not publishing:
+            if not awaiting_public_link:
                 return {**run, "wait_timed_out": False}
             # An output ID can arrive on a later publication sweep than the terminal attempt status.
             if publication_deadline is None:
@@ -503,23 +523,28 @@ def results(site: str, device: dict, run_id: str, out: Path) -> dict:
         raise ValueError("Enter a run ID returned by Evals.")
     data = api(site, f"/cli/runs/{run_id}/results", token=device["token"], timeout=60)
     out.mkdir(parents=True, exist_ok=True)
-    output_url = published_output_url(site, data.get("visibility"), (setup.get("output_id") for setup in data["setups"]))
+    visibility = data.get("visibility")
+    output_url = public_output_url(site, visibility, (setup.get("output_id") for setup in data["setups"]))
     manifest = {"run_id": run_id, "review_url": f"{site}/runs/{run_id}", "outputs_url": output_url, "setups": [], "problems": []}
     for setup in data["setups"]:
         folder = f"setup-{setup['setup_index'] + 1}"
+        files = setup.get("files") or []
+        setup_url = public_output_url(site, visibility, (setup.get("output_id"),)) or execution_output_url(
+            site, run_id, setup.get("attempt_id"), setup.get("status"), (file["name"] for file in files),
+        )
         entry = {
             "setup_index": setup["setup_index"], "label": setup.get("label") or folder, "dir": folder,
             "model": setup.get("model"), "generation": setup.get("generation"), "status": setup.get("status"),
             "attempt_id": setup.get("attempt_id"), "turns": setup.get("turns"), "elapsed_ms": setup.get("elapsed_ms"),
             "tokens": setup.get("tokens"), "charge_usd": setup.get("charge_usd"), "main_output": setup.get("main_output"),
-            "output_id": setup.get("output_id"), "user_attempt": setup.get("user_attempt"),
+            "output_id": setup.get("output_id"), "output_url": setup_url, "user_attempt": setup.get("user_attempt"),
             "can_continue": setup.get("can_continue"), "failure": setup.get("failure"), "files": [],
         }
         base = out / folder
         base.mkdir(parents=True, exist_ok=True)
         if setup.get("final_message"):
             (base / "final_message.md").write_text(setup["final_message"], encoding="utf-8")
-        for item in setup.get("files") or []:
+        for item in files:
             relative = safe_relative(item["name"])
             try:
                 size = download(item["url"], base / relative)
@@ -536,6 +561,8 @@ def results(site: str, device: dict, run_id: str, out: Path) -> dict:
             not f["input"] for f in entry["files"]
         )
         manifest["setups"].append(entry)
+        if manifest["outputs_url"] is None:
+            manifest["outputs_url"] = setup_url
     save_state(out / "manifest.json", manifest)
     return manifest | {"folder": str(out)}
 
@@ -946,7 +973,7 @@ def main(argv: list[str] | None = None) -> int:
     wait = sub.add_parser("wait", help="Wait for the current options to settle or need input")
     wait.add_argument("run_id")
     wait.add_argument("--timeout", type=int, choices=range(1, 601), metavar="SECONDS", default=120)
-    wait.add_argument("--open", action="store_true", help="Open a published output after every setup settles")
+    wait.add_argument("--open", action="store_true", help="Open an output in your browser after every setup settles")
     fetch = sub.add_parser("results", help="Download every setup's latest result into a folder")
     fetch.add_argument("run_id")
     fetch.add_argument("--out", type=Path, required=True)
